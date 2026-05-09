@@ -12,9 +12,12 @@ class DotRenderer:
         self.name = name
         self.nodes = []
         self.edges = []
+        self.clusters = {} # name -> {label, nodes}
         self.rankdir = "LR"
 
-    def add_node(self, name: str, label: str = None, style: str = "rounded", class_attr: str = None, color: str = None):
+    def add_node(self, name: str, label: str = None, style: str = "rounded", 
+                 class_attr: str = None, color: str = None, tooltip: str = None,
+                 cluster: str = None):
         attrs = [f'style={escape_dot_id(style)}']
         if label:
             attrs.append(f'label={escape_dot_id(label)}')
@@ -23,14 +26,28 @@ class DotRenderer:
         if color:
             attrs.append(f'color={escape_dot_id(color)}')
             attrs.append(f'fontcolor={escape_dot_id(color)}')
+        if tooltip:
+            attrs.append(f'tooltip={escape_dot_id(tooltip)}')
         
         attr_str = ", ".join(attrs)
-        self.nodes.append(f'  {escape_dot_id(name)} [{attr_str}];')
+        node_line = f'  {escape_dot_id(name)} [{attr_str}];'
+        
+        if cluster:
+            if cluster not in self.clusters:
+                self.clusters[cluster] = {"label": cluster, "nodes": []}
+            self.clusters[cluster]["nodes"].append(node_line)
+        else:
+            self.nodes.append(node_line)
 
-    def add_edge(self, src: str, dst: str, label: str = None):
+    def add_edge(self, src: str, dst: str, label: str = None, 
+                 class_attr: str = None, tooltip: str = None):
         attrs = []
         if label:
             attrs.append(f'label={escape_dot_id(label)}')
+        if class_attr:
+            attrs.append(f'class={escape_dot_id(class_attr)}')
+        if tooltip:
+            attrs.append(f'tooltip={escape_dot_id(tooltip)}')
         
         attr_str = ""
         if attrs:
@@ -46,14 +63,28 @@ class DotRenderer:
             '  edge [fontname="Helvetica"];',
             ''
         ]
+        
+        # Add clusters
+        for c_name, data in self.clusters.items():
+            # Standard Graphviz cluster prefix
+            cluster_id = f"cluster_{c_name.replace('.', '_').replace('(', '_').replace(')', '_')}"
+            lines.append(f'  subgraph {escape_dot_id(cluster_id)} {{')
+            lines.append(f'    label={escape_dot_id(data["label"])};')
+            lines.append('    style="filled,rounded";')
+            lines.append('    color="#f0f0f0";')
+            for node_line in data["nodes"]:
+                lines.append(f'  {node_line}')
+            lines.append('  }')
+            
         lines.extend(self.nodes)
-        if self.nodes and self.edges:
+        if (self.nodes or self.clusters) and self.edges:
             lines.append('')
         lines.extend(self.edges)
         lines.append('}')
         return '\n'.join(lines)
 
-def format_node(renderer: DotRenderer, node_id: str, label: str, node_type: str):
+def format_node(renderer: DotRenderer, node_id: str, label: str, node_type: str, 
+                classes: str = None, tooltip: str = None, cluster: str = None):
     """
     Applies styling based on node type:
     - root: solid rounded box
@@ -61,13 +92,21 @@ def format_node(renderer: DotRenderer, node_id: str, label: str, node_type: str)
     - builtin-like: rounded dotted gray box
     - unresolved: rounded dashed gray box
     """
+    if classes is None:
+        classes = f"{node_type} function"
+        
     if node_type == "root":
-        renderer.add_node(node_id, label=label, style="rounded", class_attr="root function")
+        renderer.add_node(node_id, label=label, style="rounded", class_attr=classes, 
+                          tooltip=tooltip, cluster=cluster)
     elif node_type == "expandable":
-        renderer.add_node(node_id, label=label, style="rounded,dashed", class_attr="expandable function")
+        renderer.add_node(node_id, label=label, style="rounded,dashed", class_attr=classes, 
+                          tooltip=tooltip, cluster=cluster)
     elif node_type == "builtin-like":
-        renderer.add_node(node_id, label=label, style="rounded,dotted", class_attr="builtin function", color="gray")
+        renderer.add_node(node_id, label=label, style="rounded,dotted", class_attr=classes, 
+                          color="gray", tooltip=tooltip, cluster=cluster)
     elif node_type == "unresolved":
-        renderer.add_node(node_id, label=label, style="rounded,dashed", class_attr="unresolved function", color="gray")
+        renderer.add_node(node_id, label=label, style="rounded,dashed", class_attr=classes, 
+                          color="gray", tooltip=tooltip, cluster=cluster)
     else:
-        renderer.add_node(node_id, label=label, style="rounded")
+        renderer.add_node(node_id, label=label, style="rounded", class_attr=classes, 
+                          tooltip=tooltip, cluster=cluster)

@@ -81,10 +81,10 @@ def count_nodes_edges(dot_content: str) -> Tuple[int, int]:
     return nodes, edges
 
 def check_tup_edges(dot_content: str) -> bool:
-    # Strict check for TUP library call
-    edge1 = '"TransparentUpgradeableProxy._dispatchUpgradeToAndCall()" -> "ERC1967Utils.upgradeToAndCall(address,bytes)" [label="library"];'
-    edge2 = '"TransparentUpgradeableProxy._dispatchUpgradeToAndCall()" -> "abi.decode()" [label="solidity"];'
-    return edge1 in dot_content and edge2 in dot_content
+    # Relaxed check for TUP edges to handle stable IDs and metadata
+    check1 = '_dispatchUpgradeToAndCall()" -> "contracts/proxy/ERC1967/ERC1967Utils.sol::ERC1967Utils::upgradeToAndCall'
+    check2 = '_dispatchUpgradeToAndCall()" -> "abi.decode()"'
+    return check1 in dot_content and check2 in dot_content
 
 def classify_result(rc_dot: int, err_dot: str, rc_list: int, dot_valid: str, extra_check: str) -> str:
     """

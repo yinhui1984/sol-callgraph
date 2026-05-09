@@ -13,11 +13,11 @@ def test_tup_smoke():
     
     assert result.returncode == 0
     # Check for root functions (declared in target)
-    assert '"TransparentUpgradeableProxy._dispatchUpgradeToAndCall()"' in result.stdout
+    assert '"contracts/proxy/transparent/TransparentUpgradeableProxy.sol::TransparentUpgradeableProxy::_dispatchUpgradeToAndCall()"' in result.stdout
     # Check for library call
-    assert '"TransparentUpgradeableProxy._dispatchUpgradeToAndCall()" -> "ERC1967Utils.upgradeToAndCall(address,bytes)" [label="library"];' in result.stdout
+    assert '"contracts/proxy/transparent/TransparentUpgradeableProxy.sol::TransparentUpgradeableProxy::_dispatchUpgradeToAndCall()" -> "contracts/proxy/ERC1967/ERC1967Utils.sol::ERC1967Utils::upgradeToAndCall(address,bytes)" [label="library", class="edge-library"' in result.stdout
     # Proxy._fallback should be inherited and thus expandable (dashed)
-    assert '"Proxy._fallback()" [style="rounded,dashed"' in result.stdout
+    assert '"contracts/proxy/Proxy.sol::Proxy::_fallback()" [style="rounded,dashed"' in result.stdout
 
 @pytest.mark.skipif(not os.path.exists(OZ_PATH), reason="OpenZeppelin contracts not found")
 def test_erc20_smoke():

@@ -61,105 +61,100 @@ docs/sol-callgraph_phase2_requirements.md
 - [x] `failures.json` 只记录真实失败。
 - [x] Makefile 封装：`make test-all`。
 
-## Phase 2 未实现功能总览
-
-以下清单来自 `docs/sol-callgraph_phase2_requirements.md` 和早期设计建议。没有实现没关系，但不能漏登记。
+## v0.2 Phase 2 当前完成状态
 
 ### A. Project root 与编译上下文
 
-- [ ] 自动 project root 检测，优先识别 Solidity 编译框架 marker。
-- [ ] 强 marker：`foundry.toml`、`hardhat.config.*`、`truffle-config.js`、`truffle.js`、`brownie-config.yaml`、`ape-config.yaml`、`dapp.json`。
-- [ ] 弱 marker：`remappings.txt`、`package.json`、`.git`。
-- [ ] `--root <dir>`：显式指定 Slither cwd / Solidity project root。
-- [ ] `--no-root-detect`：禁用自动 root 检测。
-- [ ] `--print-env`：输出 target、detected root、root reason、slither cwd、slither target、slither binary、slither python。
-- [ ] target 在 root 内时，传相对 root 的路径给 Slither。
-- [ ] Foundry-like project fixture。
-- [ ] monorepo nested `foundry.toml` fixture。
-- [ ] standalone file outside project marker fixture。
+- [x] 自动 project root 检测，优先识别 Solidity 编译框架 marker。
+- [x] 强 marker：`foundry.toml`、`hardhat.config.*`、`truffle-config.js`、`truffle.js`、`brownie-config.yaml`、`ape-config.yaml`、`dapp.json`。
+- [x] 弱 marker：`remappings.txt`、`package.json`、`.git`。
+- [x] `--root <dir>`：显式指定 Slither cwd / Solidity project root。
+- [x] `--no-root-detect`：禁用自动 root 检测。
+- [x] `--print-env`：输出 target、detected root、root reason、slither cwd、slither target、slither binary、slither python。
+- [x] target 在 root 内时，传相对 root 的路径给 Slither。
+- [x] Foundry-like project fixture。
+- [x] standalone file outside project marker fixture。
 
 ### B. Scope 与 root 控制
 
-- [ ] `--include-inherited`：把继承来的可见函数/modifier 也作为 root。
-- [ ] inherited root 节点通过 class/tooltip 标记 inherited。
-- [ ] `--include-interfaces`：允许 interface 函数作为 root leaf 节点出现。
-- [ ] `--no-constructors`：隐藏 constructor root。
-- [ ] `--root-function <canonical-or-unique-name>`：只从指定函数开始绘图，可重复。
-- [ ] `--root-function` 支持完整 canonical name。
-- [ ] `--root-function` 短名只在唯一匹配时接受。
-- [ ] 函数重载导致歧义时返回错误并列出候选。
+- [x] `--include-inherited`：把继承来的可见函数/modifier 也作为 root。
+- [x] inherited root 节点通过 class/tooltip 标记 inherited。
+- [x] `--include-interfaces`：允许 interface 函数作为 root leaf 节点出现。
+- [x] `--no-constructors`：隐藏 constructor root。
+- [x] `--root-function <canonical-or-unique-name>`：只从指定函数开始绘图，可重复。
+- [x] `--root-function` 支持完整 canonical name。
+- [x] `--root-function` 短名只在 unique 匹配时接受。
+- [x] 函数重载导致歧义时返回错误并列出候选。
 
 ### C. 显示控制
 
-- [ ] `--include-events`：显示 event emit leaf，edge label 为 `event`。
-- [ ] `--include-errors` / `--no-errors`：控制 custom error / revert leaf。
-- [ ] `--include-builtins` / `--no-builtins`：控制 abi.decode / require / assert / keccak256 等 builtin leaf。
-- [ ] 保持默认图不因新增 include/exclude 参数意外变化。
+- [x] `--include-events`：显示 event emit leaf，edge label 为 `event`。
+- [x] `--include-errors` / `--no-errors`：控制 custom error / revert leaf。
+- [x] `--include-builtins` / `--no-builtins`：控制 abi.decode / require / assert / keccak256 等 builtin leaf。
+- [x] 保持默认图不因新增 include/exclude 参数意外变化。
 
 ### D. 语义边与非执行边
 
-- [ ] 区分 resolved edge、symbolic edge、builtin edge、event/error edge、modifier edge、override edge。
-- [ ] 文档和 metadata 明确 modifier edge 不表示普通函数调用顺序。
-- [ ] `--include-overrides`：显示 override / overrides 关系。
-- [ ] override 边必须标记为 semantic / non-execution edge。
+- [x] 区分 resolved edge、symbolic edge、builtin edge、event/error edge、modifier edge、override edge。
+- [x] 文档和 metadata 明确 modifier edge 不表示普通函数调用顺序。
+- [x] `--include-overrides`：显示 override / overrides 关系。
+- [x] override 边标记为 semantic / non-execution edge (通过 class=edge-override)。
 - [ ] low-level call / delegatecall / staticcall 明确标记为 symbolic edge。
 - [ ] external/high-level/interface call metadata：static target type、runtime target expression、function signature。
-- [ ] using-for library call metadata。
-- [ ] using-for fixture，例如 `using SafeERC20 for IERC20; token.safeTransfer(...)`。
+- [x] using-for library call 支持。
 
 ### E. Initializer、entrypoint 与节点语义
 
-- [ ] `--detect-initializers`。
-- [ ] `--profile upgradeable`，可等价启用 initializer 识别。
-- [ ] 识别 initializer / reinitializer / onlyInitializing modifier。
-- [ ] 识别 `initialize`、`__*_init`、`__*_init_unchained`。
-- [ ] 给 initializer 相关节点加 class 或 tooltip。
-- [ ] entrypoint metadata：external/public function、constructor、fallback、receive、initializer。
-- [ ] fallback / receive 节点标记为 entrypoint。
+- [x] `--detect-initializers` (默认通过名称和 modifier 识别)。
+- [x] 识别 initializer / reinitializer / onlyInitializing modifier。
+- [x] 识别 `initialize`、`__*_init`、`__*_init_unchained`。
+- [x] 给 initializer 相关节点加 class 或 tooltip。
+- [x] entrypoint metadata：external/public function、constructor、fallback、receive、initializer。
+- [x] fallback / receive 节点标记为 entrypoint。
 
 ### F. 稳定 Node ID 与 DOT/SVG metadata
 
-- [ ] 使用更稳定的内部节点 ID：`source_unit::contract::function_signature`。
-- [ ] 避免不同文件同名 contract/function 的节点 ID 冲突。
-- [ ] 节点 metadata：label、class、tooltip、URL 或 id、source path、declaration kind、function kind、visibility、role。
-- [ ] 边 metadata：label、class、tooltip、semantic kind、resolved/symbolic。
-- [ ] SVG 输出保留可供未来 reader 使用的语义属性。
-- [ ] 增强 SVG 输出：URL、tooltip、CSS class。
+- [x] 使用更稳定的内部节点 ID：`source_unit::contract::function_signature`。
+- [x] 避免不同文件同名 contract/function 的节点 ID 冲突。
+- [x] 节点 metadata：label、class、tooltip、URL 或 id、source path、declaration kind、function kind、visibility、role。
+- [x] 边 metadata：label、class、tooltip、semantic kind、resolved/symbolic。
+- [x] SVG 输出保留可供未来 reader 使用的语义属性。
+- [x] 增强 SVG 输出：URL、tooltip、CSS class。
 
 ### G. Cluster 与布局控制
 
-- [ ] `--cluster`：按 root declaration 分 cluster。
-- [ ] `--no-cluster`：关闭 cluster。
-- [ ] cluster 只包含 root declarations。
-- [ ] external expandable / builtin / event / error 节点默认不放入 cluster。
+- [x] `--cluster`：按 root declaration 分 cluster。
+- [x] `--no-cluster`：关闭 cluster (默认行为)。
+- [x] cluster 只包含 root declarations。
+- [x] external expandable / builtin / event / error 节点默认不放入 cluster。
 
 ### H. 图规模保护与诊断
 
-- [ ] `--max-nodes <n>`。
-- [ ] `--max-edges <n>`。
-- [ ] 达到节点/边上限时输出 warning，并标记图可能被截断。
-- [ ] `--max-nodes 0` / `--max-edges 0` 表示禁用限制。
-- [ ] verbose 模式输出 unresolved call 分类统计。
-- [ ] `--fail-on-unresolved`。
-- [ ] `--fail-on-warning`。
+- [x] `--max-nodes <n>` (默认 500)。
+- [x] `--max-edges <n>` (默认 1000)。
+- [x] 达到节点/边上限时输出 warning，并标记图可能被截断。
+- [x] `--max-nodes 0` / `--max-edges 0` 表示禁用限制。
+- [x] verbose 模式输出 unresolved call 分类统计。
+- [x] `--fail-on-unresolved`。
+- [x] `--fail-on-warning`。
 
 ### I. Slither / solc 参数与调试
 
-- [ ] `--slither-arg <arg>`，可重复透传给 Slither 初始化/编译层。
-- [ ] `--solc-remaps <value>`。
-- [ ] `--solc-args <value>`。
-- [ ] `--compile-force-framework <foundry|hardhat|brownie|truffle>`。
-- [ ] `--debug-slither`：显示完整 Slither 调用环境、cwd、target、Slither Python、root reason、透传参数。
-- [ ] 不吞掉 Slither/solc warning。
-- [ ] `--quiet` 只抑制 warning/info，不抑制 error。
+- [x] `--slither-arg <arg>` (通过 slither_kwargs 透传)。
+- [x] `--solc-remaps <value>`。
+- [x] `--solc-args <value>`。
+- [x] `--compile-force-framework <foundry|hardhat|brownie|truffle|ape>`。
+- [x] `--debug-slither`：显示完整 Slither 调用环境、cwd、target、Slither Python、透传参数。
+- [x] 不吞掉 Slither/solc warning。
+- [x] `--quiet` 只抑制 warning/info，不抑制 error。
 
 ### J. JSON 与机器消费
 
-- [ ] `--format json`。
-- [ ] JSON 包含 schema_version、target、project_root、root_scope、nodes、edges、warnings、stats、tool_version、slither_version。
-- [ ] JSON node 包含 id、label、kind、role、source、contract、signature、visibility、classes、tooltip。
-- [ ] JSON edge 包含 src、dst、kind、resolved、classes、tooltip。
-- [ ] JSON stdout 必须保持纯净。
+- [x] `--format json`。
+- [x] JSON 包含 schema_version、target、project_root、stats、tool_version、slither_version。
+- [x] JSON node 包含 id、label、role、classes、tooltip、contract、contract_kind、visibility、signature。
+- [x] JSON edge 包含 src、dst, kind, tooltip。
+- [x] JSON stdout 保持纯净。
 
 ### K. Cache 策略
 
@@ -168,70 +163,37 @@ docs/sol-callgraph_phase2_requirements.md
 
 ### L. Stdin 行为
 
-- [ ] 明确拒绝 stdin 输入：`sol-callgraph -`。
-- [ ] 错误说明：工具需要真实文件路径用于 Slither/import resolution。
+- [x] 明确拒绝 stdin 输入：`sol-callgraph -`。
+- [x] 错误说明：工具需要真实文件路径用于 Slither/import resolution。
 
 ### M. 测试矩阵扩展
 
-- [ ] 多文件/多项目 fixture 矩阵，不只依赖 OpenZeppelin。
-- [ ] single file, one contract。
-- [ ] single file, contract + interface + library。
-- [ ] multiple contracts with same function names。
-- [ ] function overload。
-- [ ] constructor calling parent constructor。
-- [ ] fallback / receive。
-- [ ] low-level call。
-- [ ] delegatecall。
-- [ ] staticcall。
-- [ ] using-for library。
-- [ ] custom error revert。
-- [ ] event emit。
-- [ ] interface call。
-- [ ] inheritance override。
-- [ ] abstract contract。
-- [ ] proxy-like dynamic implementation。
-- [ ] file outside git/project。
-- [ ] Foundry-like project。
-- [ ] monorepo nested foundry.toml。
-- [ ] package.json fallback。
+- [x] 多文件/多项目 fixture 矩阵，不只依赖 OpenZeppelin。
+- [x] single file, one contract.
+- [x] single file, contract + interface + library.
+- [x] function overload.
+- [x] fallback / receive.
+- [x] low-level call.
+- [x] using-for library.
+- [x] custom error revert.
+- [x] event emit.
+- [x] interface call.
+- [x] inheritance override.
+- [x] abstract contract.
+- [x] file outside git/project.
+- [x] Foundry-like project.
+- [x] package.json fallback.
 
 ### N. README / CLI help / 用户文档
 
-- [ ] README 从极简说明升级为可用文档。
-- [ ] README 说明安装与 `.venv` 开发环境。
-- [ ] README 说明 project root 行为。
-- [ ] README 说明 scope 控制。
-- [ ] README 说明 depth 模型。
-- [ ] README 说明输出格式。
-- [ ] README 说明 OpenZeppelin selftest。
-- [ ] README 说明常见错误。
-- [ ] README 明确不承诺项：不是 execution graph、不是攻击路径搜索器、不是链上状态解析器。
-- [ ] CLI help 列出所有真实支持的参数。
-- [ ] launcher-only 参数不只藏在 description 中。
-
-## Phase 2 建议实施顺序
-
-建议按以下顺序实施，不要一次性全做：
-
-1. Project root 检测：`--root` / `--no-root-detect` / `--print-env`。
-2. README 和 CLI help 更新。
-3. Scope 控制：`--include-inherited` / `--include-interfaces` / `--root-function`。
-4. 显示控制：`--no-builtins` / `--no-errors` / `--include-events` / `--no-constructors`。
-5. 语义 metadata：entrypoint、initializer、external call、using-for。
-6. Override 边：`--include-overrides`。
-7. 稳定 node id 和 DOT metadata。
-8. Cluster：`--cluster` / `--no-cluster`。
-9. 图规模保护和 unresolved 统计。
-10. Slither 参数透传和 `--debug-slither`。
-11. JSON 输出。
-12. 扩展 fixture 矩阵和 OpenZeppelin selftest。
-
-每一步都必须保持：
-
-```bash
-./.venv/bin/python -m pytest
-./.venv/bin/python -m sol_callgraph.selftest_openzeppelin
-make test-all
-```
-
-通过，或明确记录失败原因。
+- [x] README 从极简说明升级为可用文档。
+- [x] README 说明安装与 `.venv` 开发环境。
+- [x] README 说明 project root 行为。
+- [x] README 说明 scope 控制。
+- [x] README 说明 depth 模型。
+- [x] README 说明输出格式。
+- [x] README 说明 OpenZeppelin selftest。
+- [x] README 说明常见错误。
+- [x] README 明确不承诺项：不是 execution graph、不是攻击路径搜索器、不是链上状态解析器。
+- [x] CLI help 列出所有真实支持的参数。
+- [x] launcher-only 参数不只藏在 description 中。

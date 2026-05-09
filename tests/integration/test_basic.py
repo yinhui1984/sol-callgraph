@@ -10,9 +10,9 @@ def test_basic_dot_output():
     
     assert result.returncode == 0
     assert "digraph focused_call_graph {" in result.stdout
-    assert '"Simple.foo()"' in result.stdout
-    assert '"Simple.bar()"' in result.stdout
-    assert '"Simple.foo()" -> "Simple.bar()" [label="internal"];' in result.stdout
+    assert '"tests/fixtures/Simple.sol::Simple::foo()"' in result.stdout
+    assert '"tests/fixtures/Simple.sol::Simple::bar()"' in result.stdout
+    assert '"tests/fixtures/Simple.sol::Simple::foo()" -> "tests/fixtures/Simple.sol::Simple::bar()" [label="internal", class="edge-internal"' in result.stdout
 
 def test_list_contracts():
     target = "tests/fixtures/Simple.sol"

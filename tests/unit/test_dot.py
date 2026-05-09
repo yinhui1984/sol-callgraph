@@ -22,13 +22,13 @@ def test_dot_renderer_basic():
 
 def test_format_node():
     renderer = DotRenderer()
-    format_node(renderer, "root_fn", "_fallback()", "root")
-    format_node(renderer, "ext_fn", "Lib.call()", "expandable")
-    format_node(renderer, "builtin_fn", "abi.decode()", "builtin-like")
-    format_node(renderer, "unresolved_fn", "unknown()", "unresolved")
+    format_node(renderer, "root_fn", "_fallback()", "root", tooltip="root tooltip")
+    format_node(renderer, "ext_fn", "Lib.call()", "expandable", tooltip="ext tooltip")
+    format_node(renderer, "builtin_fn", "abi.decode()", "builtin-like", tooltip="builtin tooltip")
+    format_node(renderer, "unresolved_fn", "unknown()", "unresolved", tooltip="unresolved tooltip")
     
     dot_output = renderer.render()
-    assert '  "root_fn" [style="rounded", label="_fallback()", class="root function"];' in dot_output
-    assert '  "ext_fn" [style="rounded,dashed", label="Lib.call()", class="expandable function"];' in dot_output
-    assert '  "builtin_fn" [style="rounded,dotted", label="abi.decode()", class="builtin function", color="gray", fontcolor="gray"];' in dot_output
-    assert '  "unresolved_fn" [style="rounded,dashed", label="unknown()", class="unresolved function", color="gray", fontcolor="gray"];' in dot_output
+    assert '  "root_fn" [style="rounded", label="_fallback()", class="root function", tooltip="root tooltip"];' in dot_output
+    assert '  "ext_fn" [style="rounded,dashed", label="Lib.call()", class="expandable function", tooltip="ext tooltip"];' in dot_output
+    assert '  "builtin_fn" [style="rounded,dotted", label="abi.decode()", class="builtin-like function", color="gray", fontcolor="gray", tooltip="builtin tooltip"];' in dot_output
+    assert '  "unresolved_fn" [style="rounded,dashed", label="unknown()", class="unresolved function", color="gray", fontcolor="gray", tooltip="unresolved tooltip"];' in dot_output

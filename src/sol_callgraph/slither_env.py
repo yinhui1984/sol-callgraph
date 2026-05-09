@@ -83,8 +83,49 @@ def detect_slither_env() -> Tuple[Optional[str], Optional[str], Optional[str]]:
 
     return None, None, None
 
+def find_project_root(target_path: str) -> Tuple[str, str]:
+    """
+    Detects the project root by looking for markers.
+    Returns (root_path, reason).
+    """
+    strong_markers = [
+        "foundry.toml", "hardhat.config.ts", "hardhat.config.js",
+        "hardhat.config.cjs", "hardhat.config.mjs", "truffle-config.js",
+        "truffle.js", "brownie-config.yaml", "ape-config.yaml", "dapp.json"
+    ]
+    weak_markers = ["remappings.txt", "package.json", ".git"]
+    
+    abs_target = os.path.abspath(target_path)
+    current_dir = os.path.dirname(abs_target) if os.path.isfile(abs_target) else abs_target
+    
+    # Search for strong markers first
+    search_dir = current_dir
+    while True:
+        for marker in strong_markers:
+            if os.path.exists(os.path.join(search_dir, marker)):
+                return search_dir, f"strong marker: {marker}"
+        
+        parent = os.path.dirname(search_dir)
+        if parent == search_dir:
+            break
+        search_dir = parent
+        
+    # Search for weak markers
+    search_dir = current_dir
+    while True:
+        for marker in weak_markers:
+            if os.path.exists(os.path.join(search_dir, marker)):
+                return search_dir, f"weak marker: {marker}"
+        
+        parent = os.path.dirname(search_dir)
+        if parent == search_dir:
+            break
+        search_dir = parent
+        
+    return current_dir, "no markers found, using target directory"
+
 def debug_env():
-    """Outputs the detected slither environment to stdout."""
+    """Outputs the detected slither environment to stdout. (Phase 1 legacy)"""
     slither_path, resolved_path, python_path = detect_slither_env()
     
     if not slither_path:
@@ -98,3 +139,14 @@ def debug_env():
     if not python_path:
         print("error: could not infer python from slither shebang", file=sys.stderr)
         sys.exit(2)
+
+def print_env_info(target: Optional[str], root: Optional[str], reason: str, slither_cwd: str, 
+                   slither_target: str, slither_bin: Optional[str], slither_python: Optional[str]):
+    """Prints environment information as requested in Phase 2."""
+    print(f"target: {target or 'N/A'}")
+    print(f"detected root: {root or 'N/A'}")
+    print(f"root reason: {reason}")
+    print(f"slither cwd: {slither_cwd}")
+    print(f"slither target: {slither_target}")
+    print(f"slither binary: {slither_bin or 'N/A'}")
+    print(f"slither python: {slither_python or 'N/A'}")
