@@ -87,24 +87,41 @@ def main():
         print(f"error: no root functions found in {config.target}", file=sys.stderr)
         sys.exit(3)
 
+    # Prepare edges with semantic/rendering properties for consistency
+    processed_edges = []
+    for src, dst, kind, tooltip in cg.edges:
+        style = "solid"
+        constraint = True
+        classes_str = f"edge-{kind}"
+        
+        if kind == "override":
+            style = "dashed"
+            constraint = False
+            classes_str += " semantic non-execution"
+            
+        processed_edges.append({
+            "src": src,
+            "dst": dst,
+            "kind": kind,
+            "tooltip": tooltip,
+            "style": style,
+            "constraint": constraint,
+            "classes": classes_str.split()
+        })
+
     renderer = DotRenderer()
     for node_id, data in cg.nodes.items():
         format_node(renderer, node_id, data["label"], data["type"], 
                     classes=data.get("classes"), tooltip=data.get("tooltip"),
                     cluster=data.get("cluster"))
     
-    for src, dst, kind, tooltip in cg.edges:
-        style = None
-        constraint = True
-        classes = f"edge-{kind}"
-        
-        if kind == "override":
-            style = "dashed"
-            constraint = False
-            classes += " semantic non-execution"
-            
-        renderer.add_edge(src, dst, label=kind, class_attr=classes, tooltip=tooltip,
-                          style=style, constraint=constraint)
+    for edge in processed_edges:
+        renderer.add_edge(
+            edge["src"], edge["dst"], label=edge["kind"], 
+            class_attr=" ".join(edge["classes"]), tooltip=edge["tooltip"],
+            style=None if edge["style"] == "solid" else edge["style"], 
+            constraint=edge["constraint"]
+        )
     
     dot_content = renderer.render()
 
@@ -145,12 +162,15 @@ def main():
                     node_info["signature"] = obj.full_name
             output_data["nodes"].append(node_info)
             
-        for src, dst, kind, tooltip in cg.edges:
+        for edge in processed_edges:
             output_data["edges"].append({
-                "src": src,
-                "dst": dst,
-                "kind": kind,
-                "tooltip": tooltip
+                "src": edge["src"],
+                "dst": edge["dst"],
+                "kind": edge["kind"],
+                "classes": edge["classes"],
+                "style": edge["style"],
+                "constraint": edge["constraint"],
+                "tooltip": edge["tooltip"]
             })
             
         json_output = json.dumps(output_data, indent=2)
