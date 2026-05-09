@@ -1,0 +1,2 @@
+[console_scripts]
+sol-callgraph = sol_callgraph.launcher:main

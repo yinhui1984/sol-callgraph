@@ -1,0 +1,100 @@
+import os
+import shutil
+import sys
+import subprocess
+from typing import Optional, Tuple
+
+def find_slither_bin() -> Optional[str]:
+    """Finds the slither binary in PATH."""
+    return shutil.which("slither")
+
+def resolve_slither_executable(slither_path: str) -> str:
+    """Resolves symlinks for the slither executable."""
+    return os.path.realpath(slither_path)
+
+def infer_python_from_shebang(executable_path: str) -> Optional[str]:
+    """
+    Reads the shebang of the executable and infers the Python interpreter.
+    Supports:
+    - #!/usr/bin/env python3
+    - #!/absolute/path/to/python
+    """
+    try:
+        with open(executable_path, 'rb') as f:
+            line = f.readline().decode('utf-8', errors='ignore').strip()
+            if not line.startswith('#!'):
+                return None
+            
+            shebang = line[2:].strip()
+            if 'env' in shebang:
+                parts = shebang.split()
+                # Find the part after 'env'
+                for i, part in enumerate(parts):
+                    if part.endswith('env') and i + 1 < len(parts):
+                        python_cmd = parts[i+1]
+                        return shutil.which(python_cmd)
+                return None
+            else:
+                return shebang
+    except Exception:
+        return None
+
+def find_slither_bins() -> list[str]:
+    """Finds all slither binaries in PATH."""
+    path = os.environ.get("PATH", "")
+    bins = []
+    for dir in path.split(os.pathsep):
+        bin_path = os.path.join(dir, "slither")
+        if os.path.isfile(bin_path) and os.access(bin_path, os.X_OK):
+            bins.append(bin_path)
+    return bins
+
+def validate_slither_python(python_path: str) -> bool:
+    """Checks if the given python can import slither."""
+    if not python_path or not os.path.isfile(python_path):
+        return False
+    try:
+        # Try to import slither
+        result = subprocess.run([python_path, "-c", "import slither"], capture_output=True, text=True)
+        return result.returncode == 0
+    except Exception:
+        return False
+
+def detect_slither_env() -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """
+    Detects the slither environment.
+    Returns (slither_path, resolved_slither_path, slither_python_path).
+    """
+    slither_bins = find_slither_bins()
+    
+    for slither_path in slither_bins:
+        resolved_path = resolve_slither_executable(slither_path)
+        python_path = infer_python_from_shebang(resolved_path)
+        
+        if python_path and validate_slither_python(python_path):
+            return slither_path, resolved_path, python_path
+            
+    # If we couldn't find one via shebang, try just 'python3' if it has slither
+    python3 = shutil.which("python3")
+    if python3 and validate_slither_python(python3):
+        # We don't have a specific slither_path, but we have a python with slither
+        slither_path = shutil.which("slither")
+        return slither_path, slither_path, python3
+
+    return None, None, None
+
+def debug_env():
+    """Outputs the detected slither environment to stdout."""
+    slither_path, resolved_path, python_path = detect_slither_env()
+    
+    if not slither_path:
+        print("error: slither not found in PATH", file=sys.stderr)
+        sys.exit(2)
+    
+    print(f"slither: {slither_path}")
+    print(f"resolved slither: {resolved_path}")
+    print(f"slither python: {python_path or 'unknown'}")
+    
+    if not python_path:
+        print("error: could not infer python from slither shebang", file=sys.stderr)
+        sys.exit(2)

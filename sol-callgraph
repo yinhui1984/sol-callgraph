@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Get the directory where this script is located
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Check if .venv exists
+if [ ! -d "$DIR/.venv" ]; then
+    echo "Error: .venv directory not found. Please set up the virtual environment first." >&2
+    exit 1
+fi
+
+# Execute the launcher using the virtual environment's python
+# We use -m to ensure the package is correctly loaded
+exec "$DIR/.venv/bin/python" -m sol_callgraph.launcher "$@"

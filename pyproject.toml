@@ -1,0 +1,23 @@
+[project]
+name = "sol-callgraph"
+version = "0.1.0"
+description = "A focused call graph exporter for Solidity code"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+
+[project.scripts]
+sol-callgraph = "sol_callgraph.launcher:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

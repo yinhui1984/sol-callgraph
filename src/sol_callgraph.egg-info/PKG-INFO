@@ -1,0 +1,27 @@
+Metadata-Version: 2.4
+Name: sol-callgraph
+Version: 0.1.0
+Summary: A focused call graph exporter for Solidity code
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+
+# sol-callgraph
+
+A focused call graph exporter for Solidity code using Slither.
+
+## Installation
+
+```bash
+./.venv/bin/python -m pip install -e ".[dev]"
+```
+
+## Usage
+
+```bash
+sol-callgraph <target.sol>
+```
+
+See `docs/sol-callgraph_requirements_design.md` for more details.

@@ -1,0 +1,8 @@
+README.md
+pyproject.toml
+src/sol_callgraph.egg-info/PKG-INFO
+src/sol_callgraph.egg-info/SOURCES.txt
+src/sol_callgraph.egg-info/dependency_links.txt
+src/sol_callgraph.egg-info/entry_points.txt
+src/sol_callgraph.egg-info/requires.txt
+src/sol_callgraph.egg-info/top_level.txt
