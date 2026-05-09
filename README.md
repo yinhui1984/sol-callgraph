@@ -57,6 +57,7 @@ Slither must be installed in your environment. The tool will automatically detec
 - `--format svg`: Scalable Vector Graphics.
 - `--format png`: Portable Network Graphics.
 - `-o <path>`: Write output to a file instead of stdout.
+  - **Note**: Relative output paths are resolved based on the directory where the command was executed, even if a project root is automatically detected.
 
 ## Environment Management
 

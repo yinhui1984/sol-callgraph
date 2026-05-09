@@ -38,6 +38,17 @@ def main():
         elif arg.startswith("--root="):
             root_dir = arg.split("=", 1)[1]
             new_args.append(arg)
+        elif (arg == "-o" or arg == "--out") and i + 1 < len(args):
+            # Task: Resolve output path to absolute before chdir
+            out_path = args[i+1]
+            abs_out = os.path.abspath(out_path)
+            new_args.append(arg)
+            new_args.append(abs_out)
+            skip_next = True
+        elif arg.startswith("--out="):
+            out_path = arg.split("=", 1)[1]
+            abs_out = os.path.abspath(out_path)
+            new_args.append(f"--out={abs_out}")
         elif not arg.startswith("-"):
             if target is None:
                 target = arg
