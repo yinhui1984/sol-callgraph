@@ -849,7 +849,7 @@ DOT id/string escape
   使用仓库内可控 Solidity 样例，覆盖特定边界。
 
 OpenZeppelin 真实项目功能测试
-  使用 /Users/z/Documents/github/openzeppelin-contracts 作为主要真实项目样本。
+  优先使用当前工作区内的 external/openzeppelin-contracts 软链接作为主要真实项目样本。
 
 AI 智能自测
   由编程 AI 或测试脚本自动扫描真实项目，选择代表性合约，运行工具并生成测试报告。
@@ -904,13 +904,21 @@ fixture 测试应断言具体边存在或不存在，不建议只断言命令成
 真实项目测试基于：
 
 ```text
-/Users/z/Documents/github/openzeppelin-contracts
+external/openzeppelin-contracts
 ```
 
-实现时应把该路径作为本机默认测试路径，但不要硬编码为唯一可用路径。建议支持环境变量：
+该路径是指向本机真实仓库的软链接：
 
 ```text
-OZ_CONTRACTS_DIR=/Users/z/Documents/github/openzeppelin-contracts
+external/openzeppelin-contracts -> /Users/z/Documents/github/openzeppelin-contracts
+```
+
+这样编程 AI 可以在当前工作区内访问测试样本，同时 OpenZeppelin 源码不会成为本项目的一部分。
+
+实现时应把 `external/openzeppelin-contracts` 作为本机默认测试路径，但不要硬编码为唯一可用路径。建议支持环境变量：
+
+```text
+OZ_CONTRACTS_DIR=external/openzeppelin-contracts
 ```
 
 如果环境变量未设置，则测试脚本可以尝试默认路径。如果路径不存在，真实项目测试应跳过并给出明确说明；不能静默成功。
@@ -996,7 +1004,7 @@ contracts/**/*.sol
 建议工作流：
 
 ```text
-1. 确认 OZ_CONTRACTS_DIR 或默认 OpenZeppelin 路径存在。
+1. 确认 OZ_CONTRACTS_DIR 或默认 OpenZeppelin 软链接路径存在。
 2. 扫描 contracts/**/*.sol。
 3. 识别每个文件的静态特征。
 4. 选择固定回归样本 + 自动发现样本。
@@ -1275,7 +1283,7 @@ stdout 不混入 warning/error。
 失败时先修复当前阶段，不要继续堆新功能。
 每个阶段都保持 stdout/stderr 行为正确。
 不要依赖 project_background 目录中的任何文件。
-不要修改 /Users/z/Documents/github/openzeppelin-contracts。
+不要修改 external/openzeppelin-contracts 或其指向的 /Users/z/Documents/github/openzeppelin-contracts。
 使用 ./.venv/bin/python -m pytest 运行测试，不要直接使用系统 Python。
 使用 ./.venv/bin/python -m pip 安装开发依赖，不要直接使用系统 pip。
 ```
