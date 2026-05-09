@@ -17,12 +17,14 @@ def main():
     config = parse_args(sys.argv[1:])
     
     if not config.target and not config.list_contracts:
-        sys.stderr.write("error: no target file specified\n\n")
+        from sol_callgraph.cli import T
+        sys.stderr.write(f"{T['error']}: {T['err_no_target']}\n\n")
         config.parser.print_help()
         sys.exit(1)
 
     if not os.path.exists(config.target):
-        print(f"error: target file not found: {config.target}", file=sys.stderr)
+        from sol_callgraph.cli import T
+        print(f"{T['error']}: target file not found: {config.target}", file=sys.stderr)
         sys.exit(3)
 
     if config.debug_slither:
