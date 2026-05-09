@@ -9,7 +9,7 @@ def test_entrypoint_metadata():
     
     assert result.returncode == 0
     # declaredFunc is public, so it should be an entrypoint
-    assert 'class="root function entrypoint public"' in result.stdout
+    assert 'class="root function public-entrypoint public"' in result.stdout
     # onlyAdmin is a modifier
     assert 'class="root modifier"' in result.stdout
 
@@ -54,7 +54,7 @@ contract Initializable {
     result = subprocess.run(cmd, capture_output=True, text=True)
     
     assert result.returncode == 0
-    assert 'class="root function entrypoint public initializer"' in result.stdout
+    assert 'class="root function public-entrypoint public initializer"' in result.stdout
     assert 'class="root function internal initializer"' in result.stdout
     
     os.remove(fixture)

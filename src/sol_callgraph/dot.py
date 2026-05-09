@@ -40,7 +40,8 @@ class DotRenderer:
             self.nodes.append(node_line)
 
     def add_edge(self, src: str, dst: str, label: str = None, 
-                 class_attr: str = None, tooltip: str = None):
+                 class_attr: str = None, tooltip: str = None, 
+                 style: str = None, constraint: bool = True):
         attrs = []
         if label:
             attrs.append(f'label={escape_dot_id(label)}')
@@ -48,6 +49,10 @@ class DotRenderer:
             attrs.append(f'class={escape_dot_id(class_attr)}')
         if tooltip:
             attrs.append(f'tooltip={escape_dot_id(tooltip)}')
+        if style:
+            attrs.append(f'style={escape_dot_id(style)}')
+        if not constraint:
+            attrs.append('constraint=false')
         
         attr_str = ""
         if attrs:
@@ -90,6 +95,8 @@ def format_node(renderer: DotRenderer, node_id: str, label: str, node_type: str,
     - root: solid rounded box
     - expandable: rounded dashed box
     - builtin-like: rounded dotted gray box
+    - error-like: rounded dotted gray box (different class)
+    - event-like: rounded dotted gray box (different class)
     - unresolved: rounded dashed gray box
     """
     if classes is None:
@@ -101,7 +108,7 @@ def format_node(renderer: DotRenderer, node_id: str, label: str, node_type: str,
     elif node_type == "expandable":
         renderer.add_node(node_id, label=label, style="rounded,dashed", class_attr=classes, 
                           tooltip=tooltip, cluster=cluster)
-    elif node_type == "builtin-like":
+    elif node_type in ("builtin-like", "error-like", "event-like"):
         renderer.add_node(node_id, label=label, style="rounded,dotted", class_attr=classes, 
                           color="gray", tooltip=tooltip, cluster=cluster)
     elif node_type == "unresolved":

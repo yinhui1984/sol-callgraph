@@ -15,6 +15,7 @@ class CallGraph:
         self.root_functions = set()
         self.warnings = []
         self.unresolved_stats = {"low_level": 0, "high_level": 0, "library": 0, "solidity": 0}
+        self.primary_view = None
 
     def _get_node_id(self, obj):
         """Generates a stable node ID: source_unit::contract::function_signature"""
@@ -61,6 +62,7 @@ class CallGraph:
             classes = self._get_node_classes(f, "root")
             
             is_inherited = False
+            viewed_as = self.primary_view
             if self.config.contracts:
                 declarer_name = f.canonical_name.split('.')[0]
                 if not any(declarer_name == c_name for c_name in self.config.contracts):
@@ -71,7 +73,7 @@ class CallGraph:
             if is_inherited:
                 classes.append("inherited")
             
-            tooltip = self._get_node_tooltip(f, classes)
+            tooltip = self._get_node_tooltip(f, classes, viewed_as=viewed_as)
             self._add_node(node_id, self._get_label(f), node_type, f, classes=" ".join(classes), tooltip=tooltip)
 
         edge_count = 0
@@ -101,6 +103,8 @@ class CallGraph:
                         self.unresolved_stats[kind] += 1
                 
                 edge_tooltip = f"kind: {kind}"
+                if kind == "override":
+                    edge_tooltip += ", non-execution"
                 if dst_obj: edge_tooltip += ", resolved: yes"
                 else: edge_tooltip += ", resolved: no"
                 
@@ -114,13 +118,25 @@ class CallGraph:
                         queue.append((dst_obj, depth + 1))
                         
                         if dst_id not in self.nodes:
+                            node_type = "expandable"
                             classes = self._get_node_classes(dst_obj, "expandable")
-                            tooltip = self._get_node_tooltip(dst_obj, classes)
-                            self._add_node(dst_id, dst_label, "expandable", dst_obj, classes=" ".join(classes), tooltip=tooltip)
+                            node_viewed_as = self.primary_view
+                            tooltip = self._get_node_tooltip(dst_obj, classes, viewed_as=node_viewed_as)
+                            self._add_node(dst_id, dst_label, node_type, dst_obj, classes=" ".join(classes), tooltip=tooltip)
                 else:
                     if dst_id not in self.nodes:
-                        node_type = "builtin-like" if kind in ("solidity", "event", "error") else "unresolved"
+                        node_type = "builtin-like"
+                        if kind == "event": node_type = "event-like"
+                        elif kind in ("error", "solidity") and dst_label.startswith("revert"):
+                            # Distinguish raw revert(args) from custom error revert Error(args)
+                            if " " in dst_label:
+                                node_type = "error-like"
+                            else:
+                                node_type = "builtin-like"
+                        
                         self._add_node(dst_id, dst_label, node_type, dst_obj)
+
+        self._resolve_labels()
 
         if self.config.verbose:
             print(f"Graph built: {len(self.nodes)} nodes, {edge_count} edges", file=sys.stderr)
@@ -132,13 +148,67 @@ class CallGraph:
 
         return True
 
-    def _get_node_tooltip(self, f, classes):
+    def _resolve_labels(self):
+        """Resolves labels for all nodes, handling disambiguation."""
+        # 1. Count occurrences of short labels
+        label_counts = {}
+        for node_id, data in self.nodes.items():
+            short_label = data["label"]
+            label_counts[short_label] = label_counts.get(short_label, 0) + 1
+            
+        # 2. Update labels if they are not unique or are inherited
+        for node_id, data in self.nodes.items():
+            obj = data.get("obj")
+            if not obj or not isinstance(obj, (Function, Modifier)):
+                continue
+                
+            short_label = data["label"]
+            should_disambiguate = False
+            
+            # Case 1: Label conflict in current graph
+            if label_counts[short_label] > 1:
+                should_disambiguate = True
+                
+            # Case 2: Inherited node (as per rules)
+            if "inherited" in data.get("classes", ""):
+                should_disambiguate = True
+                
+            # Case 3: External/Expandable node
+            if data["type"] == "expandable":
+                should_disambiguate = True
+
+            if should_disambiguate:
+                # Use Contract.function(...) format
+                contract_name = "top_level"
+                if hasattr(obj, 'contract_declarer') and obj.contract_declarer:
+                    contract_name = obj.contract_declarer.name
+                elif hasattr(obj, 'contract') and obj.contract:
+                    contract_name = obj.contract.name
+                
+                data["label"] = f"{contract_name}.{obj.full_name}"
+
+    def _get_node_tooltip(self, f, classes, viewed_as=None):
         info = []
-        if hasattr(f, 'canonical_name'): info.append(f.canonical_name)
+        if hasattr(f, 'canonical_name'):
+            # declared in
+            declarer = f.canonical_name.split('.')[0]
+            info.append(f"declared in: {declarer}")
+            if viewed_as and viewed_as != declarer:
+                info.append(f"viewed as: {viewed_as}")
+            
+            info.append(f"signature: {f.full_name}")
+
+        try:
+            source = f.source_mapping.filename.absolute
+            root = getattr(self.config, 'root', None) or os.getcwd()
+            if source.startswith(root):
+                source = os.path.relpath(source, root)
+            else:
+                source = os.path.basename(source)
+            info.append(f"source: {source}")
+        except: pass
+
         if hasattr(f, 'visibility'): info.append(f"visibility: {f.visibility}")
-        if hasattr(f, 'contract') and f.contract:
-            kind = f.contract.contract_kind
-            info.append(f"contract: {f.contract.name} ({kind})")
         info.append(f"classes: {', '.join(classes)}")
         return "\n".join(info)
 
@@ -148,18 +218,26 @@ class CallGraph:
             classes.append("modifier")
         else:
             classes.append("function")
-            if f.is_constructor: classes.append("constructor")
-            if f.is_fallback: classes.append("fallback")
-            if f.is_receive: classes.append("receive")
-            
-            # Entrypoint marking
-            if f.visibility in ("external", "public") or f.is_constructor or f.is_fallback or f.is_receive:
-                classes.append("entrypoint")
+            if f.is_constructor: 
+                classes.append("constructor")
+                classes.append("deployment-entrypoint")
+                if role == "root" and self.config.include_inherited:
+                    # check if inherited
+                    target_abs_path = os.path.realpath(self.config.target)
+                    if not self._is_in_target_file(f, target_abs_path):
+                        classes.append("inherited-constructor")
+            elif f.is_fallback:
+                classes.append("fallback")
+                classes.append("fallback-entrypoint")
+            elif f.is_receive:
+                classes.append("receive")
+                classes.append("receive-entrypoint")
+            elif f.visibility in ("external", "public"):
+                classes.append(f"{f.visibility}-entrypoint")
             
             if f.visibility:
                 classes.append(f.visibility)
 
-            # Initializer detection
             if self._is_initializer(f):
                 classes.append("initializer")
         return classes
@@ -186,6 +264,7 @@ class CallGraph:
         # Determine target contracts/declarations
         target_contracts = []
         if self.config.contracts:
+            self.primary_view = self.config.contracts[0]
             for c_name in self.config.contracts:
                 found = False
                 for c in self.sl.contracts:
@@ -203,13 +282,20 @@ class CallGraph:
                 if self._is_in_target_file(c, target_abs_path):
                     in_file_contracts.append(c)
             
+            if in_file_contracts:
+                # Prefer contract/library over interface for viewed-as context
+                potential = [c for c in in_file_contracts if c.contract_kind in ("contract", "library")]
+                if potential:
+                    self.primary_view = potential[0].name
+                else:
+                    self.primary_view = in_file_contracts[0].name
+
             if not self.config.quiet and len(in_file_contracts) > 1:
                 decls = [f"{c.name}({c.contract_kind})" for c in in_file_contracts]
                 msg = f"multiple declarations found in {self.config.target}: {', '.join(decls)}"
-                self.warnings.append(msg)
-                print(f"warning: {msg}", file=sys.stderr)
-                msg2 = "using all executable declarations in target file as root scope; use --contract <name> to narrow it"
-                print(f"warning: {msg2}", file=sys.stderr)
+                if msg not in self.warnings:
+                    self.warnings.append(msg)
+                    self.warnings.append("using all executable declarations in target file as root scope; use --contract <name> to narrow it")
 
             for c in in_file_contracts:
                 # Default rules: skip interfaces unless requested
@@ -393,11 +479,21 @@ class CallGraph:
         # Phase 2: Apply Display Filters
         filtered = []
         for dst_id, label, kind, obj in deduped:
-            if self.config.no_errors and (label.startswith("revert") or kind == "error"):
+            # Distinguish raw revert vs custom error
+            is_custom_error = label.startswith("revert ") and " " in label
+            
+            # Filter errors (only custom ones or high-level error kind)
+            if self.config.no_errors and (is_custom_error or kind == "error"):
                 continue
+            
+            # Filter builtins (includes raw reverts)
             if self.config.no_builtins:
-                if kind == "solidity" and not label.startswith("revert"):
-                    continue
+                # Builtins are 'solidity' kind
+                if kind == "solidity":
+                    # Keep custom errors, filter raw reverts and other builtins
+                    if not is_custom_error:
+                        continue
+            
             filtered.append((dst_id, label, kind, obj))
             
         return filtered

@@ -15,7 +15,7 @@ def test_include_inherited():
     assert result.returncode == 0
     # Base.baseFunc should now be root (solid) and have 'inherited' class
     assert '"tests/fixtures/Modifiers.sol::Base::baseFunc()" [style="rounded"' in result.stdout
-    assert 'class="root function entrypoint public inherited"' in result.stdout
+    assert 'class="root function public-entrypoint public inherited"' in result.stdout
 
 def test_root_function_specific():
     target = "tests/fixtures/Modifiers.sol"

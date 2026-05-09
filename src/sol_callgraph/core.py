@@ -94,7 +94,17 @@ def main():
                     cluster=data.get("cluster"))
     
     for src, dst, kind, tooltip in cg.edges:
-        renderer.add_edge(src, dst, label=kind, class_attr=f"edge-{kind}", tooltip=tooltip)
+        style = None
+        constraint = True
+        classes = f"edge-{kind}"
+        
+        if kind == "override":
+            style = "dashed"
+            constraint = False
+            classes += " semantic non-execution"
+            
+        renderer.add_edge(src, dst, label=kind, class_attr=classes, tooltip=tooltip,
+                          style=style, constraint=constraint)
     
     dot_content = renderer.render()
 
