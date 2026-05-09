@@ -111,6 +111,11 @@ I18N = {
 
 T = I18N[LANG]
 
+class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    def __init__(self, prog):
+        # Increase max_help_position to give more room for option strings
+        super().__init__(prog, max_help_position=45)
+
 class SmartArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         sys.stderr.write(f'{T["error"]}: {message}\n\n')
@@ -158,31 +163,35 @@ def parse_args(args: List[str]) -> Config:
     parser = SmartArgumentParser(
         prog="sol-callgraph",
         description=T['description'],
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=CustomHelpFormatter
     )
     
     # Positionals
     parser.add_argument(
         "target",
         nargs="?",
-        help=T['target_help']
+        help=T['target_help'],
+        metavar="TARGET"
     )
     
     # Options
     parser.add_argument(
         "-c", "--contract",
         action="append",
-        help=T['contract_help']
+        help=T['contract_help'],
+        metavar="NAME"
     )
     parser.add_argument(
         "--depth",
         type=int,
         default=1,
-        help=T['depth_help']
+        help=T['depth_help'],
+        metavar="N"
     )
     parser.add_argument(
         "-o", "--out",
-        help=T['out_help']
+        help=T['out_help'],
+        metavar="PATH"
     )
     parser.add_argument(
         "--format",
@@ -209,7 +218,8 @@ def parse_args(args: List[str]) -> Config:
     # Phase 2 Options
     parser.add_argument(
         "--root",
-        help=T['root_help']
+        help=T['root_help'],
+        metavar="PATH"
     )
     parser.add_argument(
         "--no-root-detect",
@@ -234,7 +244,8 @@ def parse_args(args: List[str]) -> Config:
     parser.add_argument(
         "--root-function",
         action="append",
-        help=T['root_function_help']
+        help=T['root_function_help'],
+        metavar="FUNC"
     )
     
     parser.add_argument(
@@ -280,13 +291,15 @@ def parse_args(args: List[str]) -> Config:
         "--max-nodes",
         type=int,
         default=500,
-        help=T['max_nodes_help']
+        help=T['max_nodes_help'],
+        metavar="N"
     )
     parser.add_argument(
         "--max-edges",
         type=int,
         default=1000,
-        help=T['max_edges_help']
+        help=T['max_edges_help'],
+        metavar="N"
     )
     parser.add_argument(
         "--fail-on-unresolved",
@@ -303,20 +316,24 @@ def parse_args(args: List[str]) -> Config:
     parser.add_argument(
         "--slither-arg",
         action="append",
-        help=T['slither_arg_help']
+        help=T['slither_arg_help'],
+        metavar="ARG"
     )
     parser.add_argument(
         "--solc-remaps",
-        help=T['solc_remaps_help']
+        help=T['solc_remaps_help'],
+        metavar="REMAPS"
     )
     parser.add_argument(
         "--solc-args",
-        help=T['solc_args_help']
+        help=T['solc_args_help'],
+        metavar="ARGS"
     )
     parser.add_argument(
         "--compile-force-framework",
         choices=["foundry", "hardhat", "truffle", "brownie", "ape"],
-        help=T['compile_force_framework_help']
+        help=T['compile_force_framework_help'],
+        metavar="FRAMEWORK"
     )
     parser.add_argument(
         "--debug-slither",
