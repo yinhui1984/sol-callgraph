@@ -37,17 +37,27 @@ def main():
         sys.exit(0)
 
     cg = CallGraph(sl, config)
+    
+    # Task 2: Fix --contract not found error handling
+    if config.contracts:
+        target_abs_path = os.path.realpath(config.target)
+        available_decls = []
+        for c in sl.contracts:
+            try:
+                if os.path.realpath(c.source_mapping.filename.absolute) == target_abs_path:
+                    available_decls.append(c)
+            except: pass
+            
+        for c_name in config.contracts:
+            if not any(c.name == c_name for c in sl.contracts):
+                print(f"error: contract {c_name} not found in {config.target}", file=sys.stderr)
+                print("Available declarations:", file=sys.stderr)
+                for c in available_decls:
+                    print(f"  {c.name:<20} {c.contract_kind}", file=sys.stderr)
+                sys.exit(3)
+
     if not cg.build():
         print(f"error: no root functions found in {config.target}", file=sys.stderr)
-        if config.contracts:
-             print(f"Available declarations:", file=sys.stderr)
-             target_abs_path = os.path.realpath(config.target)
-             for c in sl.contracts:
-                 if hasattr(c, 'source_mapping') and c.source_mapping:
-                     try:
-                         if os.path.realpath(c.source_mapping.filename.absolute) == target_abs_path:
-                             print(f"  {c.name:<20} {c.contract_kind}", file=sys.stderr)
-                     except: pass
         sys.exit(3)
 
     renderer = DotRenderer()
@@ -70,10 +80,10 @@ def main():
         else:
             print(dot_content)
     else:
-        # SVG or PNG
-        run_dot(dot_content, config.format, config.out)
-        # if not config.out, run_dot returns bytes, but we need to handle stdout
-        if not config.out:
+        # Task 3: SVG or PNG - Fix redundant call
+        if config.out:
+            run_dot(dot_content, config.format, config.out)
+        else:
             binary_output = run_dot(dot_content, config.format)
             if binary_output:
                 sys.stdout.buffer.write(binary_output)

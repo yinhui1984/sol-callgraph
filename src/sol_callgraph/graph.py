@@ -21,13 +21,14 @@ class CallGraph:
         queue = deque([(f, 0) for f in self.root_functions])
         seen = {f.canonical_name for f in self.root_functions}
 
+        # Root functions/modifiers are already in the nodes with 'root' type
+        for f in self.root_functions:
+            self._add_node(f.canonical_name, self._get_label(f), "root", f)
+
+        edge_count = 0
         while queue:
             func, depth = queue.popleft()
             
-            # Register node
-            node_type = "root" if func in self.root_functions else "expandable"
-            self._add_node(func.canonical_name, self._get_label(func), node_type, func)
-
             if depth >= self.config.depth:
                 continue
 
@@ -35,17 +36,26 @@ class CallGraph:
             edges = self._collect_edges(func)
             for dst_id, dst_label, kind, dst_obj in edges:
                 self.edges.add((func.canonical_name, dst_id, kind))
+                edge_count += 1
                 
                 # Check if we should expand dst
                 if dst_obj and isinstance(dst_obj, (Function, Modifier)):
                     if dst_id not in seen:
                         seen.add(dst_id)
                         queue.append((dst_obj, depth + 1))
+                        
+                        # Add node as expandable if not already added as root
+                        if dst_id not in self.nodes:
+                            self._add_node(dst_id, dst_label, "expandable", dst_obj)
                 else:
                     # Builtin-like or unresolved
                     if dst_id not in self.nodes:
                         node_type = "builtin-like" if kind == "solidity" else "unresolved"
                         self._add_node(dst_id, dst_label, node_type, dst_obj)
+
+        if self.config.verbose:
+            print(f"Graph built: {len(self.nodes)} nodes, {edge_count} edges", file=os.sys.stderr)
+            print(f"Root functions: {len(self.root_functions)}", file=os.sys.stderr)
 
         return True
 
@@ -63,7 +73,8 @@ class CallGraph:
                         found = True
                         break
                 if not found:
-                    print(f"warning: contract {c_name} not found", file=os.sys.stderr)
+                    # Will be handled by core.py for exit 3
+                    pass
         else:
             # Default to all contracts in target file
             in_file_contracts = []
@@ -84,8 +95,9 @@ class CallGraph:
 
         # Collect functions from target contracts
         for c in target_contracts:
-            for f in c.functions_and_modifiers:
-                if f.contract == c and f.is_implemented:
+            # ONLY declared functions and modifiers, and MUST be in target file
+            for f in c.functions_and_modifiers_declared:
+                if f.is_implemented and self._is_in_target_file(f, target_abs_path):
                     self.root_functions.add(f)
 
     def _is_in_target_file(self, obj, target_abs_path):
@@ -112,14 +124,24 @@ class CallGraph:
     def _collect_edges(self, func):
         edges = [] # List of (dst_id, dst_label, kind, dst_obj)
         
+        # 0. Modifiers (Higher priority to label as 'modifier')
+        modifier_names = set()
+        if hasattr(func, 'modifiers'):
+            for m in func.modifiers:
+                edges.append((m.canonical_name, m.canonical_name, "modifier", m))
+                modifier_names.add(m.canonical_name)
+
         # 1. Internal calls
         for ic in func.internal_calls:
             if isinstance(ic, (Function, Modifier)):
+                if ic.canonical_name in modifier_names:
+                    continue # Already handled as modifier
                 edges.append((ic.canonical_name, ic.canonical_name, "internal", ic))
             elif hasattr(ic, 'function') and ic.function:
-                 # Handles SolidityCall in internal_calls
                  f = ic.function
                  if hasattr(f, 'canonical_name'):
+                     if f.canonical_name in modifier_names:
+                         continue
                      edges.append((f.canonical_name, f.canonical_name, "internal", f))
                  else:
                      edges.append((str(f), str(f), "solidity", None))
@@ -153,11 +175,6 @@ class CallGraph:
         for llc in func.low_level_calls:
             label = str(llc)
             edges.append((label, label, "low_level", None))
-
-        # 6. Modifiers
-        if hasattr(func, 'modifiers'):
-            for m in func.modifiers:
-                edges.append((m.canonical_name, m.canonical_name, "modifier", m))
 
         # Deduplicate and prioritize
         return self._deduplicate_edges(edges)

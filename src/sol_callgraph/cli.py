@@ -25,7 +25,10 @@ def parse_args(args: List[str]) -> Config:
         "sol-callgraph: A focused call graph exporter for Solidity.\n\n"
         "This tool generates concise call graphs centered around a specific Solidity file or contract.\n"
         "Unlike standard Slither printers, it ensures that critical calls across files, libraries, \n"
-        "and proxies (like ERC1967) are retained while filtering out project-wide noise."
+        "and proxies (like ERC1967) are retained while filtering out project-wide noise.\n\n"
+        "Environment Management:\n"
+        "  --debug-env              (Launcher only) Print Slither environment info and exit\n"
+        "  --slither-python <path>  (Launcher only) Explicitly set the Python interpreter with Slither installed"
     )
     
     parser = SmartArgumentParser(
