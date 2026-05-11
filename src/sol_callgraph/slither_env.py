@@ -4,6 +4,18 @@ import sys
 import subprocess
 from typing import Optional, Tuple
 
+FALLBACK_SLITHER_BINS = [
+    "/opt/homebrew/bin/slither",
+    "/usr/local/bin/slither",
+    "~/.pyenv/shims/slither",
+]
+
+FALLBACK_PYTHON_BINS = [
+    "/opt/homebrew/bin/python3",
+    "/usr/local/bin/python3",
+    "~/.pyenv/shims/python3",
+]
+
 def find_slither_bin() -> Optional[str]:
     """Finds the slither binary in PATH."""
     return shutil.which("slither")
@@ -32,22 +44,56 @@ def infer_python_from_shebang(executable_path: str) -> Optional[str]:
                 for i, part in enumerate(parts):
                     if part.endswith('env') and i + 1 < len(parts):
                         python_cmd = parts[i+1]
-                        return shutil.which(python_cmd)
+                        if os.path.basename(python_cmd).startswith("python"):
+                            return shutil.which(python_cmd)
+                        return None
                 return None
             else:
+                if not os.path.basename(shebang).startswith("python"):
+                    return None
                 return shebang
     except Exception:
         return None
 
+def _dedupe_paths(paths: list[str]) -> list[str]:
+    seen = set()
+    result = []
+    for path in paths:
+        expanded = os.path.expanduser(path)
+        key = os.path.realpath(expanded)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(expanded)
+    return result
+
 def find_slither_bins() -> list[str]:
-    """Finds all slither binaries in PATH."""
+    """Finds slither binaries in PATH, then common macOS fallback locations."""
     path = os.environ.get("PATH", "")
     bins = []
     for dir in path.split(os.pathsep):
+        if not dir:
+            continue
         bin_path = os.path.join(dir, "slither")
         if os.path.isfile(bin_path) and os.access(bin_path, os.X_OK):
             bins.append(bin_path)
-    return bins
+    for bin_path in FALLBACK_SLITHER_BINS:
+        expanded = os.path.expanduser(bin_path)
+        if os.path.isfile(expanded) and os.access(expanded, os.X_OK):
+            bins.append(expanded)
+    return _dedupe_paths(bins)
+
+def find_python_bins() -> list[str]:
+    """Finds python3 in PATH, then common macOS fallback locations."""
+    bins = []
+    python3 = shutil.which("python3")
+    if python3:
+        bins.append(python3)
+    for bin_path in FALLBACK_PYTHON_BINS:
+        expanded = os.path.expanduser(bin_path)
+        if os.path.isfile(expanded) and os.access(expanded, os.X_OK):
+            bins.append(expanded)
+    return _dedupe_paths(bins)
 
 def validate_slither_python(python_path: str) -> bool:
     """Checks if the given python can import slither."""
@@ -74,12 +120,11 @@ def detect_slither_env() -> Tuple[Optional[str], Optional[str], Optional[str]]:
         if python_path and validate_slither_python(python_path):
             return slither_path, resolved_path, python_path
             
-    # If we couldn't find one via shebang, try just 'python3' if it has slither
-    python3 = shutil.which("python3")
-    if python3 and validate_slither_python(python3):
-        # We don't have a specific slither_path, but we have a python with slither
-        slither_path = shutil.which("slither")
-        return slither_path, slither_path, python3
+    # If we couldn't find one via shebang, try python3 candidates that can import slither.
+    for python3 in find_python_bins():
+        if validate_slither_python(python3):
+            slither_path = find_slither_bin()
+            return slither_path, slither_path, python3
 
     return None, None, None
 
