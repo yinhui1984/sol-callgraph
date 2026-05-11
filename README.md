@@ -181,6 +181,22 @@ Print detected project environment:
 ./sol-callgraph contracts/MyContract.sol --print-env
 ```
 
+Pass Graphviz layout attributes through the Slither-style argument surface:
+
+```bash
+./sol-callgraph contracts/MyContract.sol \
+  --format svg \
+  --slither-arg=--graph-attributes \
+  --slither-arg='nodesep=0.8 ranksep=1.2 pad=0.5' \
+  --slither-arg=--node-attributes \
+  --slither-arg='margin=0.6,0.1 fontsize=14 fontname=Courier' \
+  --out graph.svg
+```
+
+Important shell rule: values containing spaces must be quoted as one
+`--slither-arg`. Without quotes, tokens such as `ranksep=1.2` and `pad=0.5`
+become unrelated CLI arguments and will be rejected.
+
 ### Output Path Behavior
 
 When `--out` is relative, it is resolved against the directory where you invoked
@@ -269,8 +285,9 @@ options:
                                        unresolved calls
   --fail-on-warning                    Exit with non-zero code if there are
                                        warnings
-  --slither-arg ARG                    Pass extra arguments to Slither (can be
-                                       repeated)
+  --slither-arg ARG                    Pass Slither kwargs or graph/node/edge
+                                       attributes (repeat; quote values with
+                                       spaces)
   --solc-remaps REMAPS                 Pass remappings to solc
   --solc-args ARGS                     Pass extra arguments to solc
   --compile-force-framework FRAMEWORK  Force Slither to use a specific
@@ -334,6 +351,31 @@ Display controls are separated because they carry different review value:
 Custom errors are often security-relevant, so they are not the same category as
 low-level builtins.
 
+### Slither Passthrough and Render Attributes
+
+`--slither-arg` is repeatable. It supports two narrow forms:
+
+- `--slither-arg=KEY=VALUE` passes `KEY=VALUE` to Slither's Python API as a
+  keyword argument. Dashes in `KEY` are converted to underscores.
+- `--slither-arg=--graph-attributes`,
+  `--slither-arg=--node-attributes`, or
+  `--slither-arg=--edge-attributes` consumes the next `--slither-arg` as a
+  space-separated list of Graphviz-style `KEY=VALUE` attributes.
+
+Example:
+
+```bash
+./sol-callgraph contracts/MyContract.sol \
+  --slither-arg=--graph-attributes \
+  --slither-arg='nodesep=0.8 ranksep=1.2 pad=0.5' \
+  --slither-arg=--node-attributes \
+  --slither-arg='margin=0.6,0.1 fontsize=14 fontname=Courier'
+```
+
+For DOT, SVG, and PNG output these attributes are applied to the generated DOT
+before rendering. For JSON output they are stored under the top-level `render`
+field so a viewer can apply the same layout hints.
+
 ## JSON Output
 
 JSON output is intended for tools and future graph viewers.
@@ -346,8 +388,28 @@ Top-level fields include:
 - `tool_version`
 - `slither_version`
 - `stats`
+- `render`
 - `nodes`
 - `edges`
+
+The `render` object carries graph, node, and edge attributes parsed from
+`--slither-arg`:
+
+```json
+{
+  "graph_attributes": {
+    "nodesep": "0.8",
+    "ranksep": "1.2",
+    "pad": "0.5"
+  },
+  "node_attributes": {
+    "margin": "0.6,0.1",
+    "fontsize": "14",
+    "fontname": "Courier"
+  },
+  "edge_attributes": {}
+}
+```
 
 Node objects include stable IDs and display metadata:
 

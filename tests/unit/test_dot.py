@@ -20,6 +20,18 @@ def test_dot_renderer_basic():
     assert '  "B" [style="dashed", label="Node B"];' in dot_output
     assert '  "A" -> "B" [label="calls"];' in dot_output
 
+def test_dot_renderer_global_attributes():
+    renderer = DotRenderer(
+        graph_attrs={"nodesep": "0.8", "ranksep": "1.2", "pad": "0.5"},
+        node_attrs={"margin": "0.6,0.1", "fontsize": "14", "fontname": "Courier"},
+    )
+    dot_output = renderer.render()
+
+    assert '  nodesep="0.8";' in dot_output
+    assert '  ranksep="1.2";' in dot_output
+    assert '  pad="0.5";' in dot_output
+    assert 'node [shape="box", style="rounded", fontname="Courier", margin="0.6,0.1", fontsize="14"]' in dot_output
+
 def test_format_node():
     renderer = DotRenderer()
     format_node(renderer, "root_fn", "_fallback()", "root", tooltip="root tooltip")

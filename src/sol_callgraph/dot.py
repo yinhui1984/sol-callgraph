@@ -1,4 +1,5 @@
 import json
+from typing import Dict, Optional
 
 def escape_dot_id(id_str: str) -> str:
     """Escapes a string for use as a DOT ID or label."""
@@ -8,12 +9,18 @@ def escape_dot_id(id_str: str) -> str:
     return f'"{escaped}"'
 
 class DotRenderer:
-    def __init__(self, name: str = "focused_call_graph"):
+    def __init__(self, name: str = "focused_call_graph",
+                 graph_attrs: Optional[Dict[str, str]] = None,
+                 node_attrs: Optional[Dict[str, str]] = None,
+                 edge_attrs: Optional[Dict[str, str]] = None):
         self.name = name
         self.nodes = []
         self.edges = []
         self.clusters = {} # name -> {label, nodes}
         self.rankdir = "LR"
+        self.graph_attrs = graph_attrs or {}
+        self.node_attrs = node_attrs or {}
+        self.edge_attrs = edge_attrs or {}
 
     def add_node(self, name: str, label: str = None, style: str = "rounded", 
                  class_attr: str = None, color: str = None, tooltip: str = None,
@@ -61,11 +68,18 @@ class DotRenderer:
         self.edges.append(f'  {escape_dot_id(src)} -> {escape_dot_id(dst)}{attr_str};')
 
     def render(self) -> str:
+        graph_attrs = {"rankdir": self.rankdir}
+        graph_attrs.update(self.graph_attrs)
+        node_attrs = {"shape": "box", "style": "rounded", "fontname": "Helvetica"}
+        node_attrs.update(self.node_attrs)
+        edge_attrs = {"fontname": "Helvetica"}
+        edge_attrs.update(self.edge_attrs)
+
         lines = [
             f'digraph {self.name} {{',
-            f'  rankdir={escape_dot_id(self.rankdir)};',
-            '  node [shape=box, style="rounded", fontname="Helvetica"];',
-            '  edge [fontname="Helvetica"];',
+            *[f'  {key}={escape_dot_id(value)};' for key, value in graph_attrs.items()],
+            f'  node [{", ".join(f"{key}={escape_dot_id(value)}" for key, value in node_attrs.items())}];',
+            f'  edge [{", ".join(f"{key}={escape_dot_id(value)}" for key, value in edge_attrs.items())}];',
             ''
         ]
         

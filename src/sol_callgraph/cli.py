@@ -1,7 +1,8 @@
 import argparse
 import sys
 import locale
-from typing import List, Optional
+import shlex
+from typing import Dict, List, Optional
 
 def get_lang():
     try:
@@ -52,7 +53,7 @@ I18N = {
         'max_edges_help': 'Maximum number of edges in the graph (default: 1000, 0 for unlimited)',
         'fail_on_unresolved_help': 'Exit with non-zero code if there are unresolved calls',
         'fail_on_warning_help': 'Exit with non-zero code if there are warnings',
-        'slither_arg_help': 'Pass extra arguments to Slither (can be repeated)',
+        'slither_arg_help': 'Pass Slither kwargs or graph/node/edge attributes (repeat; quote values with spaces)',
         'solc_remaps_help': 'Pass remappings to solc',
         'solc_args_help': 'Pass extra arguments to solc',
         'compile_force_framework_help': 'Force Slither to use a specific compilation framework',
@@ -98,7 +99,7 @@ I18N = {
         'max_edges_help': '图中的最大边数（默认：1000，0 表示不限制）',
         'fail_on_unresolved_help': '如果存在未解析的调用，以非零代码退出',
         'fail_on_warning_help': '如果存在警告，以非零代码退出',
-        'slither_arg_help': '向 Slither 传递额外参数（可重复）',
+        'slither_arg_help': '传递 Slither kwargs 或 graph/node/edge 属性（可重复；含空格需加引号）',
         'solc_remaps_help': '向 solc 传递重映射（Remappings）',
         'solc_args_help': '向 solc 传递额外参数',
         'compile_force_framework_help': '强制 Slither 使用特定的编译框架',
@@ -110,6 +111,54 @@ I18N = {
 }
 
 T = I18N[LANG]
+
+def _parse_attribute_list(value: str) -> Dict[str, str]:
+    attrs = {}
+    for token in shlex.split(value):
+        if "=" not in token:
+            raise ValueError(f"expected KEY=VALUE attribute, got {token!r}")
+        key, attr_value = token.split("=", 1)
+        if not key:
+            raise ValueError(f"empty attribute name in {token!r}")
+        attrs[key] = attr_value
+    return attrs
+
+def parse_slither_args(values: List[str]):
+    slither_kwargs = {}
+    graph_attrs = {}
+    node_attrs = {}
+    edge_attrs = {}
+    i = 0
+    while i < len(values):
+        value = values[i]
+        if value in ("--graph-attributes", "--node-attributes", "--edge-attributes"):
+            if i + 1 >= len(values):
+                raise ValueError(f"{value} requires a following --slither-arg=KEY=VALUE list")
+            try:
+                attrs = _parse_attribute_list(values[i + 1])
+            except ValueError as e:
+                raise ValueError(f"{value}: {e}") from e
+            if value == "--graph-attributes":
+                graph_attrs.update(attrs)
+            elif value == "--node-attributes":
+                node_attrs.update(attrs)
+            else:
+                edge_attrs.update(attrs)
+            i += 2
+            continue
+
+        if value.startswith("--"):
+            raise ValueError(
+                f"unsupported Slither CLI flag {value!r}; use KEY=VALUE for Slither Python kwargs"
+            )
+        if "=" not in value:
+            raise ValueError(f"expected KEY=VALUE slither argument, got {value!r}")
+        key, arg_value = value.split("=", 1)
+        if not key:
+            raise ValueError(f"empty slither argument name in {value!r}")
+        slither_kwargs[key.replace("-", "_")] = arg_value
+        i += 1
+    return slither_kwargs, graph_attrs, node_attrs, edge_attrs
 
 class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter):
     def __init__(self, prog):
@@ -154,6 +203,15 @@ class Config:
         self.fail_on_warning = args.fail_on_warning
         # Phase 2 Slither/solc passthrough
         self.slither_args = args.slither_arg or []
+        try:
+            (
+                self.slither_kwargs,
+                self.graph_attributes,
+                self.node_attributes,
+                self.edge_attributes,
+            ) = parse_slither_args(self.slither_args)
+        except ValueError as e:
+            parser.error(str(e))
         self.solc_remaps = args.solc_remaps
         self.solc_args = args.solc_args
         self.compile_force_framework = args.compile_force_framework

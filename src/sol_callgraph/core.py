@@ -32,13 +32,17 @@ def main():
         print(f"  cwd: {os.getcwd()}", file=sys.stderr)
         print(f"  target: {config.target}", file=sys.stderr)
         print(f"  slither_args: {config.slither_args}", file=sys.stderr)
+        print(f"  slither_kwargs: {config.slither_kwargs}", file=sys.stderr)
+        print(f"  graph_attributes: {config.graph_attributes}", file=sys.stderr)
+        print(f"  node_attributes: {config.node_attributes}", file=sys.stderr)
+        print(f"  edge_attributes: {config.edge_attributes}", file=sys.stderr)
         print(f"  solc_remaps: {config.solc_remaps}", file=sys.stderr)
         print(f"  solc_args: {config.solc_args}", file=sys.stderr)
         print(f"  compile_force_framework: {config.compile_force_framework}", file=sys.stderr)
 
     try:
         # Build Slither constructor arguments
-        slither_kwargs = {}
+        slither_kwargs = dict(config.slither_kwargs)
         if config.solc_remaps:
             slither_kwargs["solc_remaps"] = config.solc_remaps.split()
         if config.solc_args:
@@ -109,7 +113,11 @@ def main():
             "classes": classes_str.split()
         })
 
-    renderer = DotRenderer()
+    renderer = DotRenderer(
+        graph_attrs=config.graph_attributes,
+        node_attrs=config.node_attributes,
+        edge_attrs=config.edge_attributes,
+    )
     for node_id, data in cg.nodes.items():
         format_node(renderer, node_id, data["label"], data["type"], 
                     classes=data.get("classes"), tooltip=data.get("tooltip"),
@@ -137,6 +145,11 @@ def main():
                 "nodes": len(cg.nodes),
                 "edges": len(cg.edges),
                 "unresolved": cg.unresolved_stats
+            },
+            "render": {
+                "graph_attributes": config.graph_attributes,
+                "node_attributes": config.node_attributes,
+                "edge_attributes": config.edge_attributes
             },
             "nodes": [],
             "edges": []
