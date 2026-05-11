@@ -82,3 +82,64 @@ def test_path_slither_keeps_priority_over_fallback(tmp_path, monkeypatch):
     assert slither_path == str(path_slither)
     assert resolved_path == os.path.realpath(path_slither)
     assert python_path == str(path_python)
+
+
+def test_build_toolchain_env_appends_foundry(tmp_path, monkeypatch):
+    foundry_bin = tmp_path / ".foundry" / "bin"
+    foundry_bin.mkdir(parents=True)
+    
+    # Mock expanduser and isdir
+    monkeypatch.setattr(os.path, "expanduser", lambda p: str(foundry_bin) if "~/.foundry" in p else p)
+    
+    def mock_isdir(path):
+        if path == str(foundry_bin): return True
+        if path in ("/usr/bin", "/bin"): return True
+        return False
+        
+    monkeypatch.setattr(os.path, "isdir", mock_isdir)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    
+    env = slither_env.build_toolchain_env()
+    path = env["PATH"]
+    
+    assert "/usr/bin" in path
+    assert "/bin" in path
+    assert str(foundry_bin) in path
+    # With our mock, only /usr/bin, /bin, and foundry_bin exist.
+    # So path should be exactly this:
+    assert path == f"/usr/bin:/bin:{foundry_bin}"
+
+
+def test_build_toolchain_env_deduplicates_and_preserves_order(tmp_path, monkeypatch):
+    foundry_bin = tmp_path / ".foundry" / "bin"
+    foundry_bin.mkdir(parents=True)
+    
+    monkeypatch.setattr(os.path, "expanduser", lambda p: str(foundry_bin) if "~/.foundry" in p else p)
+    
+    def mock_isdir(path):
+        if path == str(foundry_bin): return True
+        if path in ("/usr/bin", "/bin"): return True
+        return False
+        
+    monkeypatch.setattr(os.path, "isdir", mock_isdir)
+    # Put foundry_bin in the middle
+    monkeypatch.setenv("PATH", f"/usr/bin:{foundry_bin}:/bin")
+    
+    env = slither_env.build_toolchain_env()
+    path = env["PATH"]
+    
+    # Should stay where it was, and no extra paths added because they don't "exist"
+    assert path == f"/usr/bin:{foundry_bin}:/bin"
+
+
+def test_augment_process_path_updates_environ(tmp_path, monkeypatch):
+    foundry_bin = tmp_path / ".foundry" / "bin"
+    foundry_bin.mkdir(parents=True)
+    
+    monkeypatch.setattr(os.path, "expanduser", lambda p: str(foundry_bin) if "~/.foundry" in p else p)
+    monkeypatch.setattr(os.path, "isdir", lambda p: True) # Everything exists
+    monkeypatch.setenv("PATH", "/usr/bin")
+    
+    slither_env.augment_process_path()
+    
+    assert str(foundry_bin) in os.environ["PATH"]

@@ -1,9 +1,17 @@
 import sys
 import subprocess
 import os
-from sol_callgraph.slither_env import detect_slither_env, debug_env, find_project_root, print_env_info
+from sol_callgraph.slither_env import (
+    detect_slither_env, 
+    debug_env, 
+    find_project_root, 
+    print_env_info,
+    build_toolchain_env,
+    augment_process_path
+)
 
 def main():
+    augment_process_path()
     # Minimal argument parsing for launcher
     args = sys.argv[1:]
     
@@ -99,7 +107,7 @@ def main():
 
     # Core is located in the same package
     package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    env = os.environ.copy()
+    env = build_toolchain_env()
     if "PYTHONPATH" in env:
         env["PYTHONPATH"] = f"{package_root}:{env['PYTHONPATH']}"
     else:

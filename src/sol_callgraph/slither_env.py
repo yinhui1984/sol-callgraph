@@ -95,6 +95,52 @@ def find_python_bins() -> list[str]:
             bins.append(expanded)
     return _dedupe_paths(bins)
 
+def build_toolchain_env() -> dict[str, str]:
+    """
+    Returns a copy of os.environ with an augmented PATH for Solidity toolchains.
+    Specifically targets macOS GUI/Electron environments where PATH is minimal.
+    """
+    env = os.environ.copy()
+    current_path = env.get("PATH", "")
+    
+    # Common macOS toolchain and system paths
+    extra_paths = [
+        "~/.foundry/bin",
+        "~/.cargo/bin",
+        "~/.local/bin",
+        "/opt/homebrew/bin",
+        "/opt/homebrew/sbin",
+        "/usr/local/bin",
+        "/usr/local/sbin",
+        "/usr/bin",
+        "/bin",
+        "/usr/sbin",
+        "/sbin",
+    ]
+    
+    # Split current PATH and normalize
+    path_list = [p for p in current_path.split(os.pathsep) if p]
+    seen_real_paths = {os.path.realpath(p) for p in path_list if os.path.isdir(p)}
+    
+    # Append extra paths if they exist and are not already in PATH
+    for p in extra_paths:
+        expanded = os.path.expanduser(p)
+        if not os.path.isdir(expanded):
+            continue
+            
+        real_p = os.path.realpath(expanded)
+        if real_p not in seen_real_paths:
+            path_list.append(expanded)
+            seen_real_paths.add(real_p)
+            
+    env["PATH"] = os.pathsep.join(path_list)
+    return env
+
+def augment_process_path():
+    """Updates os.environ['PATH'] in-place for the current process."""
+    env = build_toolchain_env()
+    os.environ["PATH"] = env["PATH"]
+
 def validate_slither_python(python_path: str) -> bool:
     """Checks if the given python can import slither."""
     if not python_path or not os.path.isfile(python_path):
@@ -195,3 +241,4 @@ def print_env_info(target: Optional[str], root: Optional[str], reason: str, slit
     print(f"slither target: {slither_target}")
     print(f"slither binary: {slither_bin or 'N/A'}")
     print(f"slither python: {slither_python or 'N/A'}")
+    print(f"PATH: {os.environ.get('PATH', 'N/A')}")

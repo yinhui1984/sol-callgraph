@@ -12,8 +12,10 @@ from sol_callgraph.cli import parse_args
 from sol_callgraph.graph import CallGraph
 from sol_callgraph.dot import DotRenderer, format_node
 from sol_callgraph.graphviz import run_dot
+from sol_callgraph.slither_env import augment_process_path
 
 def main():
+    augment_process_path()
     config = parse_args(sys.argv[1:])
     
     if not config.target and not config.list_contracts:

@@ -8,3 +8,5 @@ project_background/
 
 # External local checkouts
 external/
+tests/fixtures/foundry_project/cache/
+tests/fixtures/foundry_project/out/
