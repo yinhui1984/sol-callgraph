@@ -152,7 +152,7 @@ docs/sol-callgraph_phase2_requirements.md
 
 - [x] `--format json`。
 - [x] JSON 包含 schema_version、target、project_root、stats、tool_version、slither_version。
-- [x] JSON node 包含 id、label、role、classes、tooltip、contract、contract_kind、visibility、signature。
+- [x] JSON node 包含 id、label、role、classes、tooltip、source_location、declared_contract、contract、contract_kind、visibility、signature。
 - [x] JSON edge 包含 src、dst, kind, tooltip。
 - [x] JSON stdout 保持纯净。
 

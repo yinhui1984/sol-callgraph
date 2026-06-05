@@ -622,12 +622,20 @@ label
 kind
 role
 source
+source_location
+declared_contract
+declared_contract_kind
 contract
+viewed_as_contract
 signature
 visibility
 classes
 tooltip
 ```
+
+`source_location` 来自 Slither `source_mapping`，用于机器消费和源码跳转，
+不要依赖 tooltip 或函数名正则推断声明位置。它应包含源文件路径、绝对路径、
+起止行列以及可用的源码 offset/length。
 
 边至少包含：
 

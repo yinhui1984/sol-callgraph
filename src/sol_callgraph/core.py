@@ -14,6 +14,53 @@ from sol_callgraph.dot import DotRenderer, format_node
 from sol_callgraph.graphviz import run_dot
 from sol_callgraph.slither_env import augment_process_path
 
+def _path_relative_to_root(file_path, root):
+    try:
+        abs_path = os.path.realpath(file_path)
+        root_path = os.path.realpath(root)
+        if os.path.commonpath([abs_path, root_path]) == root_path:
+            return os.path.relpath(abs_path, root_path)
+        return os.path.basename(abs_path)
+    except Exception:
+        return file_path
+
+def _get_source_location(obj, root):
+    if not obj or not hasattr(obj, "source_mapping") or not obj.source_mapping:
+        return None
+
+    source_mapping = obj.source_mapping
+    try:
+        filename = source_mapping.filename.absolute
+    except Exception:
+        return None
+
+    absolute_path = os.path.realpath(filename)
+    lines = list(getattr(source_mapping, "lines", []) or [])
+    start_offset = getattr(source_mapping, "start", None)
+    length = getattr(source_mapping, "length", None)
+    end_offset = getattr(source_mapping, "end", None)
+
+    location = {
+        "path": _path_relative_to_root(absolute_path, root),
+        "absolute_path": absolute_path,
+    }
+
+    if lines:
+        location["start_line"] = lines[0]
+        location["end_line"] = lines[-1]
+    if getattr(source_mapping, "starting_column", None) is not None:
+        location["start_column"] = source_mapping.starting_column
+    if getattr(source_mapping, "ending_column", None) is not None:
+        location["end_column"] = source_mapping.ending_column
+    if start_offset is not None:
+        location["start_offset"] = start_offset
+    if length is not None:
+        location["length"] = length
+    if end_offset is not None:
+        location["end_offset"] = end_offset
+
+    return location
+
 def main():
     augment_process_path()
     config = parse_args(sys.argv[1:])
@@ -168,9 +215,16 @@ def main():
             # Add more detail if object is available
             obj = data.get("obj")
             if obj:
+                source_location = _get_source_location(obj, os.getcwd())
+                if source_location:
+                    node_info["source_location"] = source_location
+                if hasattr(obj, 'contract_declarer') and obj.contract_declarer:
+                    node_info["declared_contract"] = obj.contract_declarer.name
+                    node_info["declared_contract_kind"] = obj.contract_declarer.contract_kind
                 if hasattr(obj, 'contract') and obj.contract:
                     node_info["contract"] = obj.contract.name
                     node_info["contract_kind"] = obj.contract.contract_kind
+                    node_info["viewed_as_contract"] = obj.contract.name
                 if hasattr(obj, 'visibility'):
                     node_info["visibility"] = obj.visibility
                 if hasattr(obj, 'full_name'):

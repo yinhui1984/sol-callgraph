@@ -91,6 +91,10 @@ Example JSON edge metadata:
 }
 ```
 
+JSON nodes also include structured source locations from Slither. Consumers
+should use `source_location` for source jumps instead of parsing `tooltip` or
+guessing from the function signature.
+
 ## Installation
 
 This repository targets Python 3.12+.
@@ -420,12 +424,32 @@ Node objects include stable IDs and display metadata:
   "role": "root",
   "classes": ["root", "function", "internal", "inherited"],
   "tooltip": "declared in: Proxy\nviewed as: TransparentUpgradeableProxy\nsignature: _fallback()\nsource: contracts/proxy/Proxy.sol\nvisibility: internal\nclasses: root, function, internal, inherited",
+  "source_location": {
+    "path": "contracts/proxy/Proxy.sol",
+    "absolute_path": "/abs/openzeppelin-contracts/contracts/proxy/Proxy.sol",
+    "start_line": 57,
+    "end_line": 57,
+    "start_column": 5,
+    "end_column": 26,
+    "start_offset": 1644,
+    "length": 21,
+    "end_offset": 1665
+  },
+  "declared_contract": "Proxy",
+  "declared_contract_kind": "contract",
   "contract": "TransparentUpgradeableProxy",
   "contract_kind": "contract",
+  "viewed_as_contract": "TransparentUpgradeableProxy",
   "visibility": "internal",
   "signature": "_fallback()"
 }
 ```
+
+`declared_contract` identifies where the function or modifier is declared.
+`contract` and `viewed_as_contract` preserve the existing viewed-as context,
+which can differ for inherited or interface declarations. `source_location`
+comes directly from Slither `source_mapping` and is the canonical source-jump
+metadata.
 
 Edge objects include graph semantics and viewer-ready rendering hints:
 
