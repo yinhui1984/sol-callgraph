@@ -2,6 +2,7 @@ import sys
 import os
 import json
 from slither import Slither
+from slither.core.declarations import Contract, Function, Modifier
 try:
     from slither import __version__ as slither_version
 except ImportError:
@@ -60,6 +61,119 @@ def _get_source_location(obj, root):
         location["end_offset"] = end_offset
 
     return location
+
+def _symbol_kind(obj):
+    kind = obj.__class__.__name__.lower()
+    if isinstance(obj, Function):
+        return "modifier" if isinstance(obj, Modifier) else "function"
+    if isinstance(obj, Contract):
+        return obj.contract_kind or "contract"
+    return kind
+
+def _source_snippet(location):
+    absolute_path = location.get("absolute_path")
+    start_offset = location.get("start_offset")
+    length = location.get("length")
+    if not absolute_path or start_offset is None or length is None:
+        return None
+    try:
+        with open(absolute_path, "r", encoding="utf-8") as source_file:
+            return source_file.read()[start_offset:start_offset + length]
+    except Exception:
+        return None
+
+def _get_reference_location(ir, root):
+    expression = getattr(ir, "expression", None)
+    called = getattr(expression, "called", None)
+    location = _get_source_location(called, root) if called else None
+    if location:
+        return location
+    location = _get_source_location(expression, root) if expression else None
+    if location:
+        return location
+    return _get_source_location(getattr(ir, "node", None), root)
+
+def _build_symbol_index(sl, cg, target, root):
+    symbols = []
+    seen = set()
+    declarations = list(sl.contracts)
+    for contract in sl.contracts:
+        declarations.extend(getattr(contract, "functions_and_modifiers_declared", []) or [])
+
+    for obj in declarations:
+        location = _get_source_location(obj, root)
+        if not location:
+            continue
+        symbol_id = cg._get_node_id(obj) if isinstance(obj, (Function, Modifier)) else f"{location['path']}::{getattr(obj, 'name', str(obj))}"
+        if symbol_id in seen:
+            continue
+        seen.add(symbol_id)
+        container_path = []
+        if hasattr(obj, "contract_declarer") and obj.contract_declarer:
+            container_path.append(obj.contract_declarer.name)
+        elif hasattr(obj, "contract") and obj.contract:
+            container_path.append(obj.contract.name)
+
+        symbol = {
+            "id": symbol_id,
+            "kind": _symbol_kind(obj),
+            "name": getattr(obj, "name", str(obj)),
+            "container_path": container_path,
+            "source_location": location,
+        }
+        if hasattr(obj, "full_name"):
+            symbol["signature"] = obj.full_name
+        snippet = _source_snippet(location)
+        if snippet:
+            symbol["declaration_text"] = snippet
+        symbols.append(symbol)
+
+    return {
+        "schema_version": 1,
+        "target_path": target,
+        "project_root": root,
+        "symbols": symbols,
+    }
+
+def _build_definition_index(sl, cg, target, root):
+    references = []
+    seen = set()
+
+    for contract in sl.contracts:
+        for func in getattr(contract, "functions_and_modifiers_declared", []) or []:
+            for node in getattr(func, "nodes", []) or []:
+                for ir in getattr(node, "irs", []) or []:
+                    definition = getattr(ir, "function", None)
+                    if not isinstance(definition, (Function, Modifier)):
+                        continue
+                    reference_location = _get_reference_location(ir, root)
+                    definition_location = _get_source_location(definition, root)
+                    if not reference_location or not definition_location:
+                        continue
+                    reference_id = "|".join([
+                        reference_location.get("absolute_path", reference_location.get("path", "")),
+                        str(reference_location.get("start_offset", "")),
+                        str(reference_location.get("length", "")),
+                        cg._get_node_id(definition),
+                    ])
+                    if reference_id in seen:
+                        continue
+                    seen.add(reference_id)
+                    references.append({
+                        "id": reference_id,
+                        "name": getattr(definition, "name", str(definition)),
+                        "source_location": reference_location,
+                        "definition_symbol_id": cg._get_node_id(definition),
+                        "definition_location": definition_location,
+                        "confidence": "exact",
+                    })
+
+    return {
+        "schema_version": 1,
+        "target_path": target,
+        "project_root": root,
+        "references": references,
+    }
 
 def main():
     augment_process_path()
@@ -200,6 +314,8 @@ def main():
                 "node_attributes": config.node_attributes,
                 "edge_attributes": config.edge_attributes
             },
+            "symbol_index": _build_symbol_index(sl, cg, config.target, os.getcwd()),
+            "definition_index": _build_definition_index(sl, cg, config.target, os.getcwd()),
             "nodes": [],
             "edges": []
         }

@@ -95,6 +95,17 @@ JSON nodes also include structured source locations from Slither. Consumers
 should use `source_location` for source jumps instead of parsing `tooltip` or
 guessing from the function signature.
 
+JSON output also includes source-mapped analysis artifacts for downstream
+readers:
+
+- `symbol_index.symbols`: declarations discovered by Slither, including
+  contracts, interfaces, libraries, functions, and modifiers.
+- `definition_index.references`: exact function/modifier call references mapped
+  to their declaration `definition_location`.
+
+Consumers should only use `definition_index.references[*].confidence == "exact"`
+for jump-to-definition behavior.
+
 ## Installation
 
 This repository targets Python 3.12+.

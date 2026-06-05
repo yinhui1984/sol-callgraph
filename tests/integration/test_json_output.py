@@ -79,3 +79,43 @@ contract StakedTokenV2Rev4 is
     assert implementation_node["source_location"]["path"] == "StakedTokenV2Rev4.sol"
     assert interface_node["source_location"]["start_line"] == 4
     assert implementation_node["source_location"]["start_line"] == 22
+
+def test_json_definition_index_maps_call_reference_to_definition(tmp_path):
+    fixture = tmp_path / "DefinitionProbe.sol"
+    source = """contract DefinitionProbe {
+  function target(uint256 amount) internal {}
+
+  function caller() external {
+    target(1);
+  }
+}
+"""
+    fixture.write_text(source)
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "sol_callgraph.launcher",
+        str(fixture),
+        "--format",
+        "json",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    references = data["definition_index"]["references"]
+    target_refs = [ref for ref in references if ref["name"] == "target"]
+
+    assert len(target_refs) == 1
+    reference = target_refs[0]
+    assert reference["confidence"] == "exact"
+    assert reference["source_location"]["start_line"] == 5
+    assert reference["source_location"]["start_offset"] == source.index("target(1)")
+    assert reference["definition_location"]["start_line"] == 2
+    assert reference["definition_symbol_id"].endswith("::DefinitionProbe::target(uint256)")
+
+    symbols = data["symbol_index"]["symbols"]
+    target_symbols = [symbol for symbol in symbols if symbol["name"] == "target"]
+    assert len(target_symbols) == 1
+    assert target_symbols[0]["source_location"]["start_line"] == 2
